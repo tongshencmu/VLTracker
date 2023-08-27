@@ -113,6 +113,11 @@ class Tracker:
                 val = tracker_out.get(key, defaults.get(key, None))
                 if key in tracker_out or val is not None:
                     output[key].append(val)
+                    
+        nlp = None
+        if hasattr(seq, 'nlp'):
+            nlp = seq.nlp
+        init_info['nlp'] = nlp
 
         # Initialize
         image = self._read_image(seq.frames[0])

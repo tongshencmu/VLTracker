@@ -14,7 +14,7 @@ import os
 from lib.test.tracker.data_utils import Preprocessor
 from lib.utils.box_ops import clip_box
 from lib.utils.ce_utils import generate_mask_cond
-
+import open_clip
 
 class OSTrack(BaseTracker):
     def __init__(self, params, dataset_name):
@@ -30,6 +30,7 @@ class OSTrack(BaseTracker):
         self.feat_sz = self.cfg.TEST.SEARCH_SIZE // self.cfg.MODEL.BACKBONE.STRIDE
         # motion constrain
         self.output_window = hann2d(torch.tensor([self.feat_sz, self.feat_sz]).long(), centered=True).cuda()
+        self.tokenizer = open_clip.get_tokenizer('ViT-B-16')
 
         # for debug
         self.debug = params.debug
@@ -56,6 +57,12 @@ class OSTrack(BaseTracker):
         with torch.no_grad():
             self.z_dict1 = template
 
+        self.text_embed = None
+        if info['nlp'] is not None and self.cfg.MODEL.TEXT.USE_TEXT:
+            text = self.tokenizer([info['nlp']]).cuda()
+            self.text_embed = self.network.text_encoder.encode_text(text)
+            self.text_embed = self.network.text_dim_mapper(self.text_embed)
+            
         self.box_mask_z = None
         if self.cfg.MODEL.BACKBONE.CE_LOC:
             template_bbox = self.transform_bbox_to_crop(info['init_bbox'], resize_factor,
@@ -82,7 +89,10 @@ class OSTrack(BaseTracker):
             # merge the template and the search
             # run the transformer
             out_dict = self.network.forward(
-                template=self.z_dict1.tensors, search=x_dict.tensors, ce_template_mask=self.box_mask_z)
+                template=self.z_dict1.tensors,
+                search=x_dict.tensors,
+                ce_template_mask=self.box_mask_z,
+                text_embed=self.text_embed)
 
         # add hann windows
         pred_score_map = out_dict['score_map']

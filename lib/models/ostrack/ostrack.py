@@ -72,7 +72,8 @@ class OSTrack(nn.Module):
                 text_embed = self.text_dim_mapper(text_embed)
         else:
             text_embed = None
-
+        
+        return
         x, aux_dict = self.backbone(z=template, x=search, text_embed=text_embed,
                                     ce_template_mask=ce_template_mask,
                                     ce_keep_rate=ce_keep_rate,

@@ -95,14 +95,14 @@ class ViTTIMM(VisionTransformer):
         
 if __name__ == '__main__':
     
-    def func_kwargs(arg1, **kwargs):
-        print('arg1 =', arg1)
-        print('kwargs =', kwargs)
+    # def func_kwargs(arg1, **kwargs):
+    #     print('arg1 =', arg1)
+    #     print('kwargs =', kwargs)
 
-    func_kwargs(**{'arg1': 'one', 'arg2': 'two', 'arg3': 'three'})
+    # func_kwargs(**{'arg1': 'one', 'arg2': 'two', 'arg3': 'three'})
 
-    args_dict = {}
-    args_dict = {'template_img_size': 128, 'search_img_size': 256}
+    # args_dict = {}
+    # args_dict = {'template_img_size': 128, 'search_img_size': 256}
     # args_dict = {'pre_norm': True, 'template_img_size': 128, 'search_img_size': 256, 'class_token': True, 
     # 'use_class_token': False, 'num_classes': 512, 'in_chans': 3, 'img_size': (224, 224)}
     # model = VisionTransformer().cuda()
@@ -113,18 +113,50 @@ if __name__ == '__main__':
     # optimizer.zero_grad()
     # optimizer.step()
     
-    model = ViTFusion(**args_dict).cuda()
-    model.customize_vit()
-    a = torch.randn(1, 3, 128, 128).cuda()
-    b = torch.randn(1, 3, 256, 256).cuda()
-    x, aux_dict = model(a, b)
-    print(model.template_pos_embed.shape, model.search_pos_embed.device)
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.0001)
-    x.sum().backward()
-    for name, param in model.named_parameters():
-        if param.grad is not None:
-            print(name, param.device, param.shape)
-            print(name, param.grad.device, param.grad.shape)
-    optimizer.zero_grad()
-    optimizer.step()
+    # model = ViTFusion(**args_dict).cuda()
+    # model.customize_vit()
+    # a = torch.randn(1, 3, 128, 128).cuda()
+    # b = torch.randn(1, 3, 256, 256).cuda()
+    # x, aux_dict = model(a, b)
+    # print(model.template_pos_embed.shape, model.search_pos_embed.device)
+    # optimizer = torch.optim.SGD(model.parameters(), lr=0.0001)
+    # x.sum().backward()
+    # for name, param in model.named_parameters():
+    #     if param.grad is not None:
+    #         print(name, param.device, param.shape)
+    #         print(name, param.grad.device, param.grad.shape)
+    # optimizer.zero_grad()
+    # optimizer.step()
     # print(model)
+    
+    from timm.models._builder import build_model_with_cfg
+    from timm.models.vision_transformer import checkpoint_filter_fn
+    
+    kwargs = dict(pre_norm=True,
+                  template_img_size=128,
+                  search_img_size=256,
+                  stride=16,
+                  use_class_token=False)
+    model_name = 'vit_base_patch16_clip_224'
+    model_tag = 'laion2b'
+
+    backbone = build_model_with_cfg(
+        ViTTIMM,
+        variant=f'{model_name}.{model_tag}',
+        pretrained=False,
+        pretrained_filter_fn=checkpoint_filter_fn,
+        **kwargs,
+    ).cuda()
+
+    hidden_dim = backbone.embed_dim
+
+    ckpt = torch.load('vit-b-16-laion-2b.pth', map_location="cpu")
+    out_dict = checkpoint_filter_fn(ckpt, backbone)
+    missing_keys, unexpected_keys = backbone.load_state_dict(
+        out_dict, strict=False)
+    print('Model Name: ', f'{model_name}.{model_tag}')
+    print("missing keys:", missing_keys)
+    print("unexpected keys:", unexpected_keys)
+    print("Loading pretrained TIMM ViT done.")
+
+    backbone.customize_vit()
