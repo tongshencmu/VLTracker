@@ -32,7 +32,7 @@ class VisionTransformerCE(VisionTransformer):
                  num_heads=12, mlp_ratio=4., qkv_bias=True, representation_size=None, distilled=False,
                  drop_rate=0., attn_drop_rate=0., drop_path_rate=0., embed_layer=PatchEmbed, norm_layer=None,
                  act_layer=None, weight_init='',
-                 ce_loc=None, ce_keep_ratio=None):
+                 ce_loc=None, ce_keep_ratio=None, fusion_loc=[]):
         """
         Args:
             img_size (int, tuple): input image size
@@ -81,6 +81,7 @@ class VisionTransformerCE(VisionTransformer):
         blocks = []
         ce_index = 0
         self.ce_loc = ce_loc
+        self.fusion_loc = fusion_loc
         for i in range(depth):
             ce_keep_ratio_i = 1.0
             if ce_loc is not None and i in ce_loc:
@@ -156,6 +157,10 @@ class VisionTransformerCE(VisionTransformer):
         for i, blk in enumerate(self.blocks):
             x, global_index_t, global_index_s, removed_index_s, attn = \
                 blk(x, global_index_t, global_index_s, mask_x, ce_template_mask, ce_keep_rate)
+            if i in self.fusion_loc and text_embed is not None:
+                print('fusion !! ')
+                x = x[:, 1:]
+                x = torch.cat([text_embed.unsqueeze(1), x], dim=1)
 
             if self.ce_loc is not None and i in self.ce_loc:
                 removed_indexes_s.append(removed_index_s)

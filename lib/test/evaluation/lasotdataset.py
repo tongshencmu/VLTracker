@@ -63,7 +63,7 @@ class LaSOTDataset(BaseDataset):
 
         target_class = class_name
         return Sequence(sequence_name, frames_list, 'lasot', ground_truth_rect.reshape(-1, 4),
-                        object_class=target_class, target_visible=target_visible, nlps=nlp_data)
+                        object_class=target_class, target_visible=target_visible, nlp=nlp_data)
 
     def get_attribute_names(self, mode='short'):
         if self.att_dict is None:

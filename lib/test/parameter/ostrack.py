@@ -9,7 +9,7 @@ def parameters(yaml_name: str):
     prj_dir = env_settings().prj_dir
     save_dir = env_settings().save_dir
     # update default config from yaml file
-    yaml_file = os.path.join(prj_dir, 'experiments/ostrack/%s.yaml' % yaml_name)
+    yaml_file = os.path.join(prj_dir, '../experiments/ostrack/%s.yaml' % yaml_name)
     update_config_from_file(yaml_file)
     params.cfg = cfg
     print("test config: ", cfg)
