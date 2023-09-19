@@ -166,3 +166,4 @@ cython_debug/
 *.mp4
 *.mp3
 *.avi
+*.pth.tar

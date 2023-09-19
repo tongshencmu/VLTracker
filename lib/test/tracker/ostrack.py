@@ -58,7 +58,7 @@ class OSTrack(BaseTracker):
             self.z_dict1 = template
 
         self.text_embed = None
-        if info['nlp'] is not None and self.cfg.MODEL.TEXT.USE_TEXT:
+        if 'nlp' in info and info['nlp'] is not None and self.cfg.MODEL.TEXT.USE_TEXT:
             text = self.tokenizer([info['nlp']]).cuda()
             self.text_embed = self.network.text_encoder.encode_text(text)
             self.text_embed = self.network.text_dim_mapper(self.text_embed)

@@ -156,7 +156,7 @@ class Tracker:
 
         return output
 
-    def run_video(self, videofilepath, optional_box=None, debug=None, visdom_info=None, save_results=False):
+    def run_video(self, videofilepath, optional_box=None, debug=None, visdom_info=None, save_results=False, result_path=None):
         """Run the tracker with the vieofile.
         args:
             debug: Debug level.
@@ -190,10 +190,15 @@ class Tracker:
 
         cap = cv.VideoCapture(videofilepath)
         display_name = 'Display: ' + tracker.params.tracker_name
-        cv.namedWindow(display_name, cv.WINDOW_NORMAL | cv.WINDOW_KEEPRATIO)
-        cv.resizeWindow(display_name, 960, 720)
+        # cv.namedWindow(display_name, cv.WINDOW_NORMAL | cv.WINDOW_KEEPRATIO)
+        # cv.resizeWindow(display_name, 960, 720)
         success, frame = cap.read()
-        cv.imshow(display_name, frame)
+        # cv.imshow(display_name, frame)
+        
+        if result_path is not None:
+            height, width, layers = frame.shape
+            fourcc = cv.VideoWriter_fourcc(*'mp4v')
+            out_video = cv.VideoWriter(result_path, fourcc, 30, (width, height))
 
         def _build_init_info(box):
             return {'init_bbox': box}
@@ -245,22 +250,23 @@ class Tracker:
                        font_color, 1)
 
             # Display the resulting frame
-            cv.imshow(display_name, frame_disp)
-            key = cv.waitKey(1)
-            if key == ord('q'):
-                break
-            elif key == ord('r'):
-                ret, frame = cap.read()
-                frame_disp = frame.copy()
+            out_video.write(frame_disp)
+            # cv.imshow(display_name, frame_disp)
+            # key = cv.waitKey(1)
+            # if key == ord('q'):
+            #     break
+            # elif key == ord('r'):
+            #     ret, frame = cap.read()
+            #     frame_disp = frame.copy()
 
-                cv.putText(frame_disp, 'Select target ROI and press ENTER', (20, 30), cv.FONT_HERSHEY_COMPLEX_SMALL, 1.5,
-                           (0, 0, 0), 1)
+            #     cv.putText(frame_disp, 'Select target ROI and press ENTER', (20, 30), cv.FONT_HERSHEY_COMPLEX_SMALL, 1.5,
+            #                (0, 0, 0), 1)
 
-                cv.imshow(display_name, frame_disp)
-                x, y, w, h = cv.selectROI(display_name, frame_disp, fromCenter=False)
-                init_state = [x, y, w, h]
-                tracker.initialize(frame, _build_init_info(init_state))
-                output_boxes.append(init_state)
+            #     cv.imshow(display_name, frame_disp)
+            #     x, y, w, h = cv.selectROI(display_name, frame_disp, fromCenter=False)
+            #     init_state = [x, y, w, h]
+            #     tracker.initialize(frame, _build_init_info(init_state))
+            #     output_boxes.append(init_state)
 
         # When everything done, release the capture
         cap.release()

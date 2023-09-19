@@ -25,7 +25,7 @@ def draw_bounding_boxes(images_folder, bounding_boxes, output_video_path, fps=30
         
         # Draw bounding boxes on the image
         x, y, w, h = bounding_box_data
-        cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        # cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
         
         # Write the image to the video
         video_writer.write(image)
@@ -39,6 +39,12 @@ data_folders = glob.glob(dataset_path + "/*/")
 result_path = '/ocean/projects/ele220002p/tongshen/code/vl_tracking/lasot_results/'
 result_txts = glob.glob(result_path + "*.txt")
 
+with open('example_seqs.txt') as f:
+    lines = f.readlines()
+    
+example_seqs = [ll.strip() for ll in lines]
+print(example_seqs)
+
 for folder in data_folders:
     
     category = folder.split('/')[-2]
@@ -46,6 +52,9 @@ for folder in data_folders:
     seqs = glob.glob(folder + "/*/")
     for seq in seqs:
         seq_name = seq.split('/')[-2]
+        
+        if seq_name not in example_seqs:
+            continue
         
         result_txt = result_path + seq_name + '.txt'
         if not os.path.isfile(result_txt):
@@ -58,8 +67,8 @@ for folder in data_folders:
             
         images = glob.glob(seq + "/img/*.*")
 
-        if os.path.isfile(f"lasot_visuals/{seq_name}.avi"):
+        if os.path.isfile(f"lasot_visuals_clean/{seq_name}.avi"):
             continue
-        draw_bounding_boxes(seq + "/img/", bboxes, f"lasot_visuals/{seq_name}.avi")
+        draw_bounding_boxes(seq + "/img/", bboxes, f"./work_dirs/example_seqs/{seq_name}.avi")
         
         print(seq_name)
