@@ -166,11 +166,16 @@ def build_ostrack(cfg, training=True):
 
     if cfg.MODEL.BACKBONE.TIMM:
 
-        kwargs = dict(pre_norm=True,
+        kwargs = dict(pre_norm=cfg.MODEL.BACKBONE.NORM_PRE,
                       template_img_size=cfg.DATA.TEMPLATE.SIZE,
                       search_img_size=cfg.DATA.SEARCH.SIZE,
                       stride=cfg.MODEL.BACKBONE.STRIDE,
-                      use_class_token=cfg.MODEL.BACKBONE.ADD_CLS_TOKEN)
+                      use_class_token=cfg.MODEL.BACKBONE.ADD_CLS_TOKEN,
+                      patch_size=cfg.MODEL.BACKBONE.PATCH_SIZE,
+                      embed_dim=cfg.MODEL.BACKBONE.EMBED_DIM,
+                      depth=cfg.MODEL.BACKBONE.NUM_LAYERS,
+                      num_heads=cfg.MODEL.BACKBONE.NUM_HEADS)
+        
         model_name = cfg.MODEL.BACKBONE.MODEL_NAME
         model_tag = cfg.MODEL.BACKBONE.MODEL_TAG
 
