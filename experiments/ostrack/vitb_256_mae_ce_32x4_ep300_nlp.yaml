@@ -51,9 +51,9 @@ MODEL:
   BACKBONE:
     TYPE: vit_base_patch16_224_ce
     STRIDE: 16
-    CE_LOC: [3, 6, 9]
-    CE_KEEP_RATIO: [0.7, 0.7, 0.7]
-    CE_TEMPLATE_RANGE: 'CTR_POINT'  # choose between ALL, CTR_POINT, CTR_REC, GT_BOX
+    # CE_LOC: [3, 6, 9]
+    # CE_KEEP_RATIO: [0.7, 0.7, 0.7]
+    # CE_TEMPLATE_RANGE: 'CTR_POINT'  # choose between ALL, CTR_POINT, CTR_REC, GT_BOX
   HEAD:
     TYPE: CENTER
     NUM_CHANNELS: 256
