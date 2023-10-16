@@ -19,6 +19,7 @@ from lib.utils.misc import is_main_process
 import open_clip
 from timm.models._builder import build_model_with_cfg
 from timm.models.vision_transformer import checkpoint_filter_fn
+from timm.models._register import model_entrypoint
 
 from lib.models.ostrack.vit_timm import ViTTIMM
 
@@ -167,6 +168,8 @@ def build_ostrack(cfg, training=True):
     if cfg.MODEL.BACKBONE.TIMM:
 
         kwargs = dict(pre_norm=cfg.MODEL.BACKBONE.NORM_PRE,
+                      img_size=cfg.MODEL.BACKBONE.IMAGE_SIZE,
+                      init_values=cfg.MODEL.BACKBONE.INIT_VALUES,
                       template_img_size=cfg.DATA.TEMPLATE.SIZE,
                       search_img_size=cfg.DATA.SEARCH.SIZE,
                       stride=cfg.MODEL.BACKBONE.STRIDE,
@@ -178,6 +181,8 @@ def build_ostrack(cfg, training=True):
         
         model_name = cfg.MODEL.BACKBONE.MODEL_NAME
         model_tag = cfg.MODEL.BACKBONE.MODEL_TAG
+        
+        hidden_dim = backbone.num_classes
 
         backbone = build_model_with_cfg(
             ViTTIMM,

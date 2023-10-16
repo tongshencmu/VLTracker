@@ -76,15 +76,16 @@ class ViTTIMM(VisionTransformer):
         
         return x, num_prefix_token
 
-    # def forward_head(self, x, pre_logits: bool = False):
-    #     if self.global_pool:
-    #         x = x[:, self.num_prefix_tokens:].mean(dim=1) if self.global_pool == 'avg' else x[:, 0]
-    #     x = self.fc_norm(x)
-    #     x = self.head_drop(x)
-    #     return x if pre_logits else self.head(x)
+    def forward_head(self, x, pre_logits: bool = False):
+        # if self.global_pool:
+        #     x = x[:, self.num_prefix_tokens:].mean(dim=1) if self.global_pool == 'avg' else x[:, 0]
+        x = self.fc_norm(x)
+        x = self.head_drop(x)
+        return x if pre_logits else self.head(x)
 
     def forward(self, z, x, text_embed=None, **kwargs):
         x, num_prefix_tokens = self.forward_features(x=x, z=z, text_embed=text_embed)
+        x = self.feature_head(x)
         # x = x[:, num_prefix_tokens:]
         # B, L, C = x.shape
         # x = x.permute(0, 2, 1).contiguous().reshape(B, C, self.search_grid_size, self.search_grid_size)

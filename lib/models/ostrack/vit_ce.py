@@ -139,9 +139,9 @@ class VisionTransformerCE(VisionTransformer):
             x = torch.cat([cls_tokens, x], dim=1)
             add_dim = 1
             
-        if text_embed is not None:
-            x = torch.cat([text_embed.unsqueeze(1), x], dim=1)
-            add_dim += 1
+        # if text_embed is not None:
+        #     x = torch.cat([text_embed.unsqueeze(1), x], dim=1)
+        #     add_dim += 1
 
         x = self.pos_drop(x)
 
@@ -155,12 +155,15 @@ class VisionTransformerCE(VisionTransformer):
         global_index_s = global_index_s.repeat(B, 1)
         removed_indexes_s = []
         for i, blk in enumerate(self.blocks):
+            
+            if i in self.fusion_loc and text_embed is not None:
+                x = torch.cat([text_embed.unsqueeze(1), x], dim=1)
+                
             x, global_index_t, global_index_s, removed_index_s, attn = \
                 blk(x, global_index_t, global_index_s, mask_x, ce_template_mask, ce_keep_rate)
+                
             if i in self.fusion_loc and text_embed is not None:
-                print('fusion !! ')
                 x = x[:, 1:]
-                x = torch.cat([text_embed.unsqueeze(1), x], dim=1)
 
             if self.ce_loc is not None and i in self.ce_loc:
                 removed_indexes_s.append(removed_index_s)
