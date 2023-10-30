@@ -167,23 +167,11 @@ def build_ostrack(cfg, training=True):
 
     if cfg.MODEL.BACKBONE.TIMM:
 
-        kwargs = dict(pre_norm=cfg.MODEL.BACKBONE.NORM_PRE,
-                      img_size=cfg.MODEL.BACKBONE.IMAGE_SIZE,
-                      init_values=cfg.MODEL.BACKBONE.INIT_VALUES,
-                      template_img_size=cfg.DATA.TEMPLATE.SIZE,
-                      search_img_size=cfg.DATA.SEARCH.SIZE,
-                      stride=cfg.MODEL.BACKBONE.STRIDE,
-                      use_class_token=cfg.MODEL.BACKBONE.ADD_CLS_TOKEN,
-                      patch_size=cfg.MODEL.BACKBONE.PATCH_SIZE,
-                      embed_dim=cfg.MODEL.BACKBONE.EMBED_DIM,
-                      depth=cfg.MODEL.BACKBONE.NUM_LAYERS,
-                      num_heads=cfg.MODEL.BACKBONE.NUM_HEADS)
+        kwargs = cfg.MODEL.BACKBONE.CFG
         
         model_name = cfg.MODEL.BACKBONE.MODEL_NAME
         model_tag = cfg.MODEL.BACKBONE.MODEL_TAG
         
-        hidden_dim = backbone.num_classes
-
         backbone = build_model_with_cfg(
             ViTTIMM,
             variant=f'{model_name}.{model_tag}',
@@ -192,7 +180,7 @@ def build_ostrack(cfg, training=True):
             **kwargs,
         ).cuda()
 
-        hidden_dim = backbone.embed_dim
+        hidden_dim = backbone.embed_dim if backbone.num_classes == 0 else backbone.num_classes
 
         ckpt = torch.load(cfg.MODEL.BACKBONE.PRETRAINED_FILE,
                           map_location="cpu")
@@ -207,7 +195,10 @@ def build_ostrack(cfg, training=True):
             print("unexpected keys:", unexpected_keys)
             print("Loading pretrained TIMM ViT done.")
 
-        backbone.customize_vit()
+        if hasattr(backbone, 'customize_vit'):
+            backbone.customize_vit()
+        else:
+            print("No customize_vit function found in the backbone. Skip.")
 
     if cfg.MODEL.TEXT.USE_TEXT:
 

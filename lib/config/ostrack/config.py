@@ -23,12 +23,24 @@ cfg.MODEL.BACKBONE.TIMM = False
 cfg.MODEL.BACKBONE.NORM_PRE = True
 cfg.MODEL.BACKBONE.MODEL_NAME = 'vit_base_patch16_clip_224'
 cfg.MODEL.BACKBONE.MODEL_TAG = 'laion2b'
-cfg.MODEL.BACKBONE.IMAGES_SIZE = 224
-cfg.MODEL.BACKBONE.INIT_VALUES = None
-cfg.MODEL.BACKBONE.PATCH_SIZE = 16
-cfg.MODEL.BACKBONE.EMBED_DIM = 768
-cfg.MODEL.BACKBONE.DEPTH = 12
-cfg.MODEL.BACKBONE.NUM_HEADS = 12
+cfg.MODEL.BACKBONE.CFG = dict(pre_norm=False,
+                              template_img_size=128,
+                              search_img_size=256,
+                              img_size=224,
+                              init_values=None,
+                              use_class_token=True,
+                              patch_size=16,
+                              embed_dim=768,
+                              depth=12,
+                              num_heads=12)
+cfg.MODEL.BACKBONE.PRETRAINED = True
+cfg.MODEL.BACKBONE.PRETRAINED_FILE = ''
+# cfg.MODEL.BACKBONE.IMAGES_SIZE = 224
+# cfg.MODEL.BACKBONE.INIT_VALUES = None
+# cfg.MODEL.BACKBONE.PATCH_SIZE = 16
+# cfg.MODEL.BACKBONE.EMBED_DIM = 768
+# cfg.MODEL.BACKBONE.DEPTH = 12
+# cfg.MODEL.BACKBONE.NUM_HEADS = 12
 
 cfg.MODEL.BACKBONE.STRIDE = 16
 cfg.MODEL.BACKBONE.MID_PE = False
@@ -38,8 +50,7 @@ cfg.MODEL.BACKBONE.MERGE_LAYER = 0
 cfg.MODEL.BACKBONE.ADD_CLS_TOKEN = False
 cfg.MODEL.BACKBONE.CLS_TOKEN_USE_MODE = 'ignore'
 cfg.MODEL.BACKBONE.FUSION_LOC = []
-cfg.MODEL.BACKBONE.PRETRAINED = True
-cfg.MODEL.BACKBONE.PRETRAINED_FILE = ''
+
 
 cfg.MODEL.BACKBONE.CE_LOC = []
 cfg.MODEL.BACKBONE.CE_KEEP_RATIO = []

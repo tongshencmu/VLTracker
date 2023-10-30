@@ -10,11 +10,11 @@ class ViTTIMM(VisionTransformer):
                  search_img_size,
                  template_img_size,
                  use_class_token=False,
-                 stride=16,
                  **kwargs):
 
         super().__init__(**kwargs)
         self.use_class_token = use_class_token
+        stride = kwargs['patch_size']
         
         self.search_grid_size = search_img_size // stride
         self.template_grid_size = template_img_size // stride
@@ -129,9 +129,6 @@ if __name__ == '__main__':
     # optimizer.zero_grad()
     # optimizer.step()
     # print(model)
-    
-    from timm.models._builder import build_model_with_cfg
-    from timm.models.vision_transformer import checkpoint_filter_fn
     
     kwargs = dict(pre_norm=True,
                   template_img_size=128,
