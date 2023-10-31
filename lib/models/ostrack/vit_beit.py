@@ -50,9 +50,9 @@ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from timm.layers import PatchEmbed, Mlp, SwiGLU, LayerNorm, DropPath, trunc_normal_, use_fused_attn
 from timm.layers import resize_rel_pos_bias_table_simple
 
-from ._builder import build_model_with_cfg
-from ._registry import generate_default_cfgs, register_model
-from .vision_transformer import checkpoint_filter_fn
+from timm.models._builder import build_model_with_cfg
+from timm.models._registry import generate_default_cfgs, register_model
+from timm.models.vision_transformer import checkpoint_filter_fn
 
 __all__ = ['Beit']
 
@@ -334,7 +334,7 @@ class Beit(nn.Module):
         self.grad_checkpointing = False
 
         self.patch_embed = PatchEmbed(
-            img_size=img_size,
+            img_size=None,
             patch_size=patch_size,
             in_chans=in_chans,
             embed_dim=embed_dim,
@@ -463,10 +463,12 @@ class Beit(nn.Module):
         x = self.head_drop(x)
         return x if pre_logits else self.head(x)
 
-    def forward(self, x):
-        x = self.forward_features(x)
+    def forward(self, z, x, text_embed=None, **kwargs):
+        x = self.forward_features(z=z, x=x, text_embed=text_embed)
         x = self.forward_head(x)
-        return x
+        
+        aux_dict = {}
+        return x, aux_dict
 
 
 def _cfg(url='', **kwargs):

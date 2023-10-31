@@ -50,16 +50,29 @@ MODEL:
   RETURN_INTER: False
   BACKBONE:
     TIMM: True
-    MODEL_NAME: eva02_base_patch16_224
+    MODEL_NAME: eva02_base_patch16_clip_224
     MODEL_TAG: merged2b
-    NORM_PRE: False
-    CFG: 
-      image_size: 224
-      patch_size: 16
-      embed_dim: 768
-      depth: 12
-      num_heads: 12
-      init_values: 1e-5
+
+    CFG_TIMM: 
+      {
+        search_img_size: 256,
+        template_img_size: 128,
+        dynamic_img_size: True,
+        num_classes: 512,
+        img_size: 224,
+        patch_size: 16,
+        embed_dim: 768,
+        depth: 12,
+        num_heads: 12,
+        qkv_fused: False,
+        mlp_ratio: 4 * 2 / 3,
+        swiglu_mlp: True,
+        scale_mlp: True,
+        scale_attn_inner: True,
+        use_rot_pos_emb: True,
+        ref_feat_shape: [16, 16],
+        global_pool: 'token',
+      }
 
     TYPE: vit_base_patch16_224_ce
     STRIDE: 16
@@ -68,7 +81,7 @@ MODEL:
     # CE_TEMPLATE_RANGE: 'CTR_POINT'  # choose between ALL, CTR_POINT, CTR_REC, GT_BOX
 
     PRETRAINED: True
-    PRETRAINED_FILE: 'pretrained_models/mae_pretrain_vit_base.pth' 
+    PRETRAINED_FILE: 'eva02_base_patch16_clip_224_merged2b.pth' 
   HEAD:
     TYPE: CENTER
     NUM_CHANNELS: 256

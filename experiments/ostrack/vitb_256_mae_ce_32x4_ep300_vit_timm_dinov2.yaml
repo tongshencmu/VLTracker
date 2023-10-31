@@ -52,14 +52,19 @@ MODEL:
     TIMM: True
     MODEL_NAME: vit_base_patch14_dinov2
     MODEL_TAG: lvd142m
-    NORM_PRE: False
-    CFG: 
-      image_size: 518
-      patch_size: 14
-      embed_dim: 768
-      depth: 12
-      num_heads: 12
-      init_values: 1e-5
+
+    CFG_TIMM: 
+      {
+        search_img_size: 256,
+        template_img_size: 128,
+        num_classes: 0, 
+        patch_size: 14, 
+        embed_dim: 768, 
+        depth: 12, 
+        num_heads: 12, 
+        init_values: 0.00001, 
+        img_size: 518
+      }
 
     TYPE: vit_base_patch16_224_ce
     STRIDE: 16
@@ -68,7 +73,7 @@ MODEL:
     # CE_TEMPLATE_RANGE: 'CTR_POINT'  # choose between ALL, CTR_POINT, CTR_REC, GT_BOX
 
     PRETRAINED: True
-    PRETRAINED_FILE: 'pretrained_models/mae_pretrain_vit_base.pth' 
+    PRETRAINED_FILE: 'vit_base_patch14_dinov2_lvd142m.pth' 
   HEAD:
     TYPE: CENTER
     NUM_CHANNELS: 256

@@ -167,3 +167,6 @@ cython_debug/
 *.mp3
 *.avi
 *.pth.tar
+
+# Exclude work_dirs
+work_dirs/

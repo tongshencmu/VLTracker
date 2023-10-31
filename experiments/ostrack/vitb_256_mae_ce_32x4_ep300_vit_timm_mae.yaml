@@ -1,9 +1,9 @@
 DATA:
   MAX_SAMPLE_INTERVAL: 200
   MEAN:
-  - 0.4815
-  - 0.4578
-  - 0.4082
+    - 0.4815
+    - 0.4578
+    - 0.4082
   SEARCH:
     CENTER_JITTER: 3
     FACTOR: 4.0
@@ -11,38 +11,38 @@ DATA:
     SIZE: 256
     NUMBER: 1
   STD:
-  - 0.2686
-  - 0.2613
-  - 0.2758
+    - 0.2686
+    - 0.2613
+    - 0.2758
   TEMPLATE:
     CENTER_JITTER: 0
     FACTOR: 2.0
     SCALE_JITTER: 0
     SIZE: 128
-#  TRAIN:
-#    DATASETS_NAME:
-#      - GOT10K_train_full
-#    DATASETS_RATIO:
-#      - 1
-#    SAMPLE_PER_EPOCH: 60000
+  #  TRAIN:
+  #    DATASETS_NAME:
+  #      - GOT10K_train_full
+  #    DATASETS_RATIO:
+  #      - 1
+  #    SAMPLE_PER_EPOCH: 60000
 
   TRAIN:
     DATASETS_NAME:
-    - LASOT
-    - GOT10K_vottrain
-    - COCO17
-    - TRACKINGNET
+      - LASOT
+      - GOT10K_vottrain
+      - COCO17
+      - TRACKINGNET
     DATASETS_RATIO:
-    - 1
-    - 1
-    - 1
-    - 1
+      - 1
+      - 1
+      - 1
+      - 1
     SAMPLE_PER_EPOCH: 60000
   VAL:
     DATASETS_NAME:
-    - GOT10K_votval
+      - GOT10K_votval
     DATASETS_RATIO:
-    - 1
+      - 1
     SAMPLE_PER_EPOCH: 10000
 MODEL:
   # PRETRAIN_FILE: "mae_pretrain_vit_base.pth"
@@ -54,6 +54,19 @@ MODEL:
     MODEL_TAG: mae
     NORM_PRE: False
 
+    CFG_TIMM:
+      {
+        search_img_size: 256,
+        template_img_size: 128,
+        img_size: 224,
+        num_classes: 0,
+        patch_size: 16,
+        embed_dim: 768,
+        depth: 12,
+        num_heads: 12,
+        pre_norm: False,
+      }
+
     TYPE: vit_base_patch16_224_ce
     STRIDE: 16
     # CE_LOC: [3, 6, 9]
@@ -61,11 +74,11 @@ MODEL:
     # CE_TEMPLATE_RANGE: 'CTR_POINT'  # choose between ALL, CTR_POINT, CTR_REC, GT_BOX
 
     PRETRAINED: True
-    PRETRAINED_FILE: 'pretrained_models/mae_pretrain_vit_base.pth' 
+    PRETRAINED_FILE: "vit_base_patch16_224_mae.pth"
   HEAD:
     TYPE: CENTER
     NUM_CHANNELS: 256
-  TEXT: 
+  TEXT:
     USE_TEXT: False
     VIT_TYPE: base
     CONTEXT_LENGTH: 77
@@ -75,12 +88,12 @@ MODEL:
     EMBED_CLS: False
     VOCAB_SIZE: 49408
     PRETRAINED: True
-    PRETRAINED_FILE: 'vit-b-16-laion-2b_text.pth'
+    PRETRAINED_FILE: "vit-b-16-laion-2b_text.pth"
 TRAIN:
   BACKBONE_MULTIPLIER: 0.1
   DROP_PATH_RATE: 0.1
-  CE_START_EPOCH: 20  # candidate elimination start epoch
-  CE_WARM_EPOCH: 80  # candidate elimination warm up epoch
+  CE_START_EPOCH: 20 # candidate elimination start epoch
+  CE_WARM_EPOCH: 80 # candidate elimination warm up epoch
   BATCH_SIZE: 32
   EPOCH: 300
   GIOU_WEIGHT: 2.0

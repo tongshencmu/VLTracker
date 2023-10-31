@@ -1,45 +1,46 @@
 import torch
 
-import timm.models._builder import build_model_with_cfg
-import timm.models.eva import Eva
+from timm.models._builder import build_model_with_cfg
+from timm.models.eva import Eva
 from timm.layers import resample_abs_pos_embed
 
 class EvaTrack(Eva):
     
-    def __init__(self, 
+    def __init__(self,
                  search_img_size,
                  template_img_size,
-                 use_class_token=False
+                 use_class_token=False,
                  **kwargs):
         
         super().__init__(**kwargs)
         
         self.use_class_token = use_class_token
+        stride = kwargs['patch_size']
         
         self.search_grid_size = search_img_size // stride
         self.template_grid_size = template_img_size // stride
         
-    def customize_vit(self):
+    # def customize_vit(self):
         
-        self.search_pos_embed = resample_abs_pos_embed(
-            self.pos_embed,
-            new_size=(self.search_grid_size, self.search_grid_size),
-            num_prefix_tokens=self.num_prefix_tokens,
-        ).cuda()
+    #     self.search_pos_embed = resample_abs_pos_embed(
+    #         self.pos_embed,
+    #         new_size=(self.search_grid_size, self.search_grid_size),
+    #         num_prefix_tokens=self.num_prefix_tokens,
+    #     ).cuda()
         
-        self.template_pos_embed = resample_abs_pos_embed(
-            self.pos_embed,
-            new_size=(self.template_grid_size, self.template_grid_size),
-            num_prefix_tokens=self.num_prefix_tokens,
-        ).cuda()
+    #     self.template_pos_embed = resample_abs_pos_embed(
+    #         self.pos_embed,
+    #         new_size=(self.template_grid_size, self.template_grid_size),
+    #         num_prefix_tokens=self.num_prefix_tokens,
+    #     ).cuda()
         
-        if not self.use_class_token:
-            self.cls_token.requires_grad = False
+    #     if not self.use_class_token:
+    #         self.cls_token.requires_grad = False
             
-        # self.head.requires_grad = False
+    #     # self.head.requires_grad = False
         
-        # support dynamic image size
-        self.patch_embed.img_size = None
+    #     # support dynamic image size
+    #     self.patch_embed.img_size = None
         
     def forward_features(self, z, x, text_embed=None):
         
@@ -50,7 +51,8 @@ class EvaTrack(Eva):
         z, rot_pos_embed_z = self._pos_embed(z)
         
         x = torch.cat([z, x[:, 1:]], dim=1)
-        rot_pos_embed = torch.cat([rot_pos_embed_z, rot_pos_embed], dim=1)
+        # print(rot_pos_embed.shape, rot_pos_embed_z.shape)
+        rot_pos_embed = torch.cat([rot_pos_embed_z, rot_pos_embed], dim=0)
         
         for blk in self.blocks:
             x = blk(x, rope=rot_pos_embed)
@@ -58,7 +60,7 @@ class EvaTrack(Eva):
         x = self.norm(x)
         return x
     
-    def forward_head(self, x):
+    def forward_head(self, x, pre_logits: bool = False):
         
         x = self.fc_norm(x)
         x = self.head_drop(x)

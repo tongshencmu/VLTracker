@@ -19,9 +19,11 @@ from lib.utils.misc import is_main_process
 import open_clip
 from timm.models._builder import build_model_with_cfg
 from timm.models.vision_transformer import checkpoint_filter_fn
-from timm.models._register import model_entrypoint
+# from timm.models._register import model_entrypoint
 
 from lib.models.ostrack.vit_timm import ViTTIMM
+from lib.models.ostrack.vit_eva import EvaTrack
+from lib.models.ostrack.vit_beit import Beit
 
 
 class OSTrack(nn.Module):
@@ -93,8 +95,7 @@ class OSTrack(nn.Module):
         """
         cat_feature: output embeddings of the backbone, it can be (HW1+HW2, B, C) or (HW2, B, C)
         """
-        enc_opt = cat_feature[:, -
-                              self.feat_len_s:]  # encoder output for the search region (B, HW, C)
+        enc_opt = cat_feature[:, -self.feat_len_s:]  # encoder output for the search region (B, HW, C)
         opt = (enc_opt.unsqueeze(-1)).permute((0, 3, 2, 1)).contiguous()
         bs, Nq, C, HW = opt.size()
         opt_feat = opt.view(-1, C, self.feat_sz_s, self.feat_sz_s)
@@ -167,13 +168,24 @@ def build_ostrack(cfg, training=True):
 
     if cfg.MODEL.BACKBONE.TIMM:
 
-        kwargs = cfg.MODEL.BACKBONE.CFG
+        kwargs = cfg.MODEL.BACKBONE.CFG_TIMM
+        if isinstance(kwargs['mlp_ratio'], str):
+            kwargs['mlp_ratio'] = eval(kwargs['mlp_ratio'])
         
         model_name = cfg.MODEL.BACKBONE.MODEL_NAME
         model_tag = cfg.MODEL.BACKBONE.MODEL_TAG
         
+        if model_name.startswith('vit'):
+            track_cls = ViTTIMM
+        elif model_name.startswith('eva'):
+            track_cls = EvaTrack
+        elif model_name.startswith('beit'):
+            track_cls = Beit
+        else:
+            raise NotImplementedError('Model Name can only be vit, eva or beit.')
+        
         backbone = build_model_with_cfg(
-            ViTTIMM,
+            track_cls,
             variant=f'{model_name}.{model_tag}',
             pretrained=False,
             pretrained_filter_fn=checkpoint_filter_fn,

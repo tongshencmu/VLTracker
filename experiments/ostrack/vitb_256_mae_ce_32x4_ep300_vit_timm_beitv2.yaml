@@ -50,16 +50,20 @@ MODEL:
   RETURN_INTER: False
   BACKBONE:
     TIMM: True
-    MODEL_NAME: beitv2_base_patch16_224
+    MODEL_NAME: beitv2_base_patch16_384
     MODEL_TAG: in1k_ft_in22k_in1k
-    NORM_PRE: False
-    CFG: 
-      image_size: 518
-      patch_size: 14
-      embed_dim: 768
-      depth: 12
-      num_heads: 12
-      init_values: 1e-5
+
+    CFG_TIMM: {
+      tem_img_size: 128,
+      img_size: 256, 
+      patch_size: 16, 
+      embed_dim: 768, 
+      depth: 12, 
+      num_heads: 12, 
+      mlp_ratio: 4,
+      use_abs_pos_emb: False, 
+      use_rel_pos_bias: True, 
+      init_values: 0.00001}
 
     TYPE: vit_base_patch16_224_ce
     STRIDE: 16
@@ -68,7 +72,7 @@ MODEL:
     # CE_TEMPLATE_RANGE: 'CTR_POINT'  # choose between ALL, CTR_POINT, CTR_REC, GT_BOX
 
     PRETRAINED: True
-    PRETRAINED_FILE: 'pretrained_models/mae_pretrain_vit_base.pth' 
+    PRETRAINED_FILE: 'beitv2_base_patch16_224_in1k_ft_in22k_in1k.pth' 
   HEAD:
     TYPE: CENTER
     NUM_CHANNELS: 256

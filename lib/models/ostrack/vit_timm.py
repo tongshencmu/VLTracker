@@ -85,7 +85,7 @@ class ViTTIMM(VisionTransformer):
 
     def forward(self, z, x, text_embed=None, **kwargs):
         x, num_prefix_tokens = self.forward_features(x=x, z=z, text_embed=text_embed)
-        x = self.feature_head(x)
+        x = self.forward_head(x)
         # x = x[:, num_prefix_tokens:]
         # B, L, C = x.shape
         # x = x.permute(0, 2, 1).contiguous().reshape(B, C, self.search_grid_size, self.search_grid_size)
