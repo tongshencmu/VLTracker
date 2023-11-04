@@ -169,7 +169,7 @@ def build_ostrack(cfg, training=True):
     if cfg.MODEL.BACKBONE.TIMM:
 
         kwargs = cfg.MODEL.BACKBONE.CFG_TIMM
-        if isinstance(kwargs['mlp_ratio'], str):
+        if hasattr(kwargs, 'mlp_ratio') and isinstance(kwargs['mlp_ratio'], str):
             kwargs['mlp_ratio'] = eval(kwargs['mlp_ratio'])
         
         model_name = cfg.MODEL.BACKBONE.MODEL_NAME

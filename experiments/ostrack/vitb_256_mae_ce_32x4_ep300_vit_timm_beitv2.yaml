@@ -50,7 +50,7 @@ MODEL:
   RETURN_INTER: False
   BACKBONE:
     TIMM: True
-    MODEL_NAME: beitv2_base_patch16_384
+    MODEL_NAME: beitv2_base_patch16_224
     MODEL_TAG: in1k_ft_in22k_in1k
 
     CFG_TIMM: {

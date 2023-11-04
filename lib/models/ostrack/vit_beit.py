@@ -119,9 +119,9 @@ class Attention(nn.Module):
             self.num_relative_distance = (2 * window_size[0] - 1) * (2 * window_size[1] - 1) + 3
             self.relative_position_bias_table = nn.Parameter(
                 torch.zeros(self.num_relative_distance, num_heads))  # 2*Wh-1 * 2*Ww-1, nH
-            self.register_buffer("relative_position_index", gen_relative_position_index(window_size))
+            self.register_buffer("relative_position_index", gen_relative_position_index(window_size), persistent=False)
             if tem_window_size:
-                self.register_buffer("tem_relative_position_index", gen_relative_position_index(self.tem_window_size))
+                self.register_buffer("tem_relative_position_index", gen_relative_position_index(self.tem_window_size), persistent=False)
         else:
             self.window_size = None
             self.relative_position_bias_table = None
@@ -368,7 +368,7 @@ class Beit(nn.Module):
                 drop_path=dpr[i],
                 norm_layer=norm_layer,
                 init_values=init_values,
-                window_size=self.patch_embed.grid_size if use_rel_pos_bias else None,
+                window_size=(img_size // patch_size, img_size // patch_size) if use_rel_pos_bias else None,
                 tem_window_size=(tem_img_size // patch_size, tem_img_size // patch_size) if tem_img_size else None,
             )
             for i in range(depth)])
