@@ -24,7 +24,9 @@ from timm.models.vision_transformer import checkpoint_filter_fn
 from lib.models.ostrack.vit_timm import ViTTIMM
 from lib.models.ostrack.vit_eva import EvaTrack
 from lib.models.ostrack.vit_beit import Beit
-
+from lib.models.ostrack.vit_timm_concat import ViTTIMMConcat
+from lib.models.ostrack.vit_timm_mid import ViTMid
+from lib.models.ostrack.vit_eva_concat import EvaConcat
 
 class OSTrack(nn.Module):
     """ This is the base class for OSTrack """
@@ -171,14 +173,26 @@ def build_ostrack(cfg, training=True):
         kwargs = cfg.MODEL.BACKBONE.CFG_TIMM
         if hasattr(kwargs, 'mlp_ratio') and isinstance(kwargs['mlp_ratio'], str):
             kwargs['mlp_ratio'] = eval(kwargs['mlp_ratio'])
+            
+        if hasattr(kwargs, 'norm_layer') and kwargs['norm_layer'] == 'nn.LayerNorm':
+            kwargs['norm_layer'] = nn.LayerNorm
         
         model_name = cfg.MODEL.BACKBONE.MODEL_NAME
         model_tag = cfg.MODEL.BACKBONE.MODEL_TAG
         
         if model_name.startswith('vit'):
-            track_cls = ViTTIMM
+            if cfg.MODEL.BACKBONE.CONCAT:
+                track_cls = ViTTIMMConcat
+            else:
+                track_cls = ViTTIMM
+            if cfg.MODEL.BACKBONE.MID_FUSION > 0:
+                track_cls = ViTMid
+                kwargs['mid_fusion'] = cfg.MODEL.BACKBONE.MID_FUSION
         elif model_name.startswith('eva'):
-            track_cls = EvaTrack
+            if cfg.MODEL.BACKBONE.CONCAT:
+                track_cls = EvaConcat
+            else:
+                track_cls = EvaTrack
         elif model_name.startswith('beit'):
             track_cls = Beit
         else:
@@ -192,7 +206,7 @@ def build_ostrack(cfg, training=True):
             **kwargs,
         ).cuda()
 
-        hidden_dim = backbone.embed_dim if backbone.num_classes == 0 else backbone.num_classes
+        hidden_dim = backbone.embed_dim
 
         ckpt = torch.load(cfg.MODEL.BACKBONE.PRETRAINED_FILE,
                           map_location="cpu")
