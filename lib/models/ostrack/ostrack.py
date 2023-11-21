@@ -7,6 +7,7 @@ from typing import List
 
 import torch
 from torch import nn
+import torch.nn.functional as F
 from torch.nn.modules.transformer import _get_clones
 
 from lib.models.layers.head import build_box_head
@@ -17,21 +18,20 @@ from lib.utils.box_ops import box_xyxy_to_cxcywh
 from lib.models.ostrack.clip import TextTransformer
 from lib.utils.misc import is_main_process
 import open_clip
+import timm
 from timm.models._builder import build_model_with_cfg
 from timm.models.vision_transformer import checkpoint_filter_fn
 # from timm.models._register import model_entrypoint
 
 from lib.models.ostrack.vit_timm import ViTTIMM
 from lib.models.ostrack.vit_eva import EvaTrack
-from lib.models.ostrack.vit_beit import Beit
-from lib.models.ostrack.vit_timm_concat import ViTTIMMConcat
+# from lib.models.ostrack.vit_beit import Beit
 from lib.models.ostrack.vit_timm_mid import ViTMid
-from lib.models.ostrack.vit_eva_concat import EvaConcat
 
 class OSTrack(nn.Module):
     """ This is the base class for OSTrack """
 
-    def __init__(self, transformer, box_head, text_encoder=None, aux_loss=False, head_type="CORNER"):
+    def __init__(self, cfg, transformer, box_head, text_encoder=None, aux_loss=False, head_type="CORNER"):
         """ Initializes the model.
         Parameters:
             transformer: torch module of the transformer architecture.
@@ -40,14 +40,15 @@ class OSTrack(nn.Module):
         super().__init__()
         self.backbone = transformer
         self.box_head = box_head
+        self.cfg = cfg
 
         self.text_encoder = text_encoder
-        if self.text_encoder is not None:
-            if self.text_encoder.width != self.backbone.embed_dim:
-                self.text_dim_mapper = nn.Linear(
-                    self.text_encoder.width, self.backbone.embed_dim)
-            else:
-                self.text_dim_mapper = nn.Identity()
+        # if self.text_encoder is not None:
+        #     if self.text_encoder.width != self.backbone.embed_dim:
+        #         self.text_dim_mapper = nn.Linear(
+        #             self.text_encoder.width, self.backbone.embed_dim)
+        #     else:
+        #         self.text_dim_mapper = nn.Identity()
 
         self.tokenizer = open_clip.get_tokenizer('ViT-B-16')
 
@@ -59,6 +60,26 @@ class OSTrack(nn.Module):
 
         if self.aux_loss:
             self.box_head = _get_clones(self.box_head, 6)
+            
+    def concat_input(self, template, search):
+        
+        if self.cfg.MODEL.BACKBONE.CONCAT_MODE == 'empty':
+            
+            empty_template = torch.zeros_like(template).to(template.device)
+            input_img = torch.cat([template, empty_template], axis=2)
+            input_img = torch.cat([input_img, search], axis=3)
+            
+        elif self.cfg.MODEL.BACKBONE.CONCAT_MODE == 'same':
+            
+            search = F.interpolate(search, scale_factor=2, mode='bilinear', align_corners=False)
+            input_img = torch.cat([template, search], axis=3)
+            
+        elif self.cfg.MODEL.BACKBONE.CONCAT_MODE == 'trident':
+            
+            input_img = torch.cat(template, axis=2)
+            input_img = torch.cat([input_img, search], axis=3)
+            
+        return input_img
 
     def forward(self, template: torch.Tensor,
                 search: torch.Tensor,
@@ -74,22 +95,38 @@ class OSTrack(nn.Module):
             if text_embed is None and text is not None:
                 text = self.tokenizer(text).to(template.device)
                 text_embed = self.text_encoder(text)
-                text_embed = self.text_dim_mapper(text_embed)
+                # text_embed = self.text_dim_mapper(text_embed)
         else:
             text_embed = None
 
-        x, aux_dict = self.backbone(z=template, x=search, text_embed=text_embed,
-                                    ce_template_mask=ce_template_mask,
-                                    ce_keep_rate=ce_keep_rate,
-                                    return_last_attn=return_last_attn, )
-
+        # Process backbone output if concat
+        if self.cfg.MODEL.BACKBONE.CONCAT:
+            
+            input_img = self.concat_input(template, search)
+            x = self.backbone.forward_features(input_img)
+            x = x[:, 1:]
+            
+            patch_size = self.backbone.patch_embed.patch_size[0]
+            tem_feat_size = template.shape[-2] // patch_size
+            search_feat_size = search.shape[-2] // patch_size
+            B = x.shape[0]
+            x = x.reshape(B, search_feat_size, tem_feat_size + search_feat_size, -1)
+            x = x[:, :, tem_feat_size:, :]
+            x = x.flatten(1, 2)
+            
+        else:
+            
+            x, aux_dict = self.backbone(z=template, x=search, text_embed=text_embed,
+                                        ce_template_mask=ce_template_mask,
+                                        ce_keep_rate=ce_keep_rate,
+                                        return_last_attn=return_last_attn, )
+        
         # Forward head
         feat_last = x
         if isinstance(x, list):
             feat_last = x[-1]
         out = self.forward_head(feat_last, None)
 
-        out.update(aux_dict)
         out['backbone_feat'] = x
         return out
 
@@ -126,49 +163,47 @@ class OSTrack(nn.Module):
             return out
         else:
             raise NotImplementedError
+        
+def init_backbone_ostrack(cfg, pretrained):
+    
+    if cfg.MODEL.BACKBONE.TYPE == 'vit_base_patch16_224':
+        backbone = vit_base_patch16_224(
+            pretrained, drop_path_rate=cfg.TRAIN.DROP_PATH_RATE)
+        hidden_dim = backbone.embed_dim
+        patch_start_index = 1
 
+    elif cfg.MODEL.BACKBONE.TYPE == 'vit_base_patch16_224_ce':
+        backbone = vit_base_patch16_224_ce(pretrained, drop_path_rate=cfg.TRAIN.DROP_PATH_RATE,
+                                           ce_loc=cfg.MODEL.BACKBONE.CE_LOC,
+                                           ce_keep_ratio=cfg.MODEL.BACKBONE.CE_KEEP_RATIO,
+                                           fusion_loc=cfg.MODEL.BACKBONE.FUSION_LOC,
+                                           )
+        hidden_dim = backbone.embed_dim
+        patch_start_index = 1
 
-def build_ostrack(cfg, training=True):
-    current_dir = os.path.dirname(os.path.abspath(
-        __file__))  # This is your Project Root
-    pretrained_path = os.path.join(current_dir, '../../../pretrained_models')
-    if cfg.MODEL.PRETRAIN_FILE and ('OSTrack' not in cfg.MODEL.PRETRAIN_FILE) and training:
-        pretrained = os.path.join(pretrained_path, cfg.MODEL.PRETRAIN_FILE)
+    elif cfg.MODEL.BACKBONE.TYPE == 'vit_large_patch16_224_ce':
+        backbone = vit_large_patch16_224_ce(pretrained, drop_path_rate=cfg.TRAIN.DROP_PATH_RATE,
+                                            ce_loc=cfg.MODEL.BACKBONE.CE_LOC,
+                                            ce_keep_ratio=cfg.MODEL.BACKBONE.CE_KEEP_RATIO,
+                                            fusion_loc=cfg.MODEL.BACKBONE.FUSION_LOC,
+                                            )
+
+        hidden_dim = backbone.embed_dim
+        patch_start_index = 1
+
     else:
-        pretrained = ''
+        raise NotImplementedError
 
-    if cfg.MODEL.BACKBONE.TIMM is False:
-        if cfg.MODEL.BACKBONE.TYPE == 'vit_base_patch16_224':
-            backbone = vit_base_patch16_224(
-                pretrained, drop_path_rate=cfg.TRAIN.DROP_PATH_RATE)
-            hidden_dim = backbone.embed_dim
-            patch_start_index = 1
+    backbone.finetune_track(cfg=cfg, patch_start_index=patch_start_index)
+    
+    return backbone, hidden_dim
 
-        elif cfg.MODEL.BACKBONE.TYPE == 'vit_base_patch16_224_ce':
-            backbone = vit_base_patch16_224_ce(pretrained, drop_path_rate=cfg.TRAIN.DROP_PATH_RATE,
-                                               ce_loc=cfg.MODEL.BACKBONE.CE_LOC,
-                                               ce_keep_ratio=cfg.MODEL.BACKBONE.CE_KEEP_RATIO,
-                                               fusion_loc=cfg.MODEL.BACKBONE.FUSION_LOC,
-                                               )
-            hidden_dim = backbone.embed_dim
-            patch_start_index = 1
-
-        elif cfg.MODEL.BACKBONE.TYPE == 'vit_large_patch16_224_ce':
-            backbone = vit_large_patch16_224_ce(pretrained, drop_path_rate=cfg.TRAIN.DROP_PATH_RATE,
-                                                ce_loc=cfg.MODEL.BACKBONE.CE_LOC,
-                                                ce_keep_ratio=cfg.MODEL.BACKBONE.CE_KEEP_RATIO,
-                                                fusion_loc=cfg.MODEL.BACKBONE.FUSION_LOC,
-                                                )
-
-            hidden_dim = backbone.embed_dim
-            patch_start_index = 1
-
-        else:
-            raise NotImplementedError
-
-        backbone.finetune_track(cfg=cfg, patch_start_index=patch_start_index)
-
-    if cfg.MODEL.BACKBONE.TIMM:
+def init_backbone_timm(cfg, pretrained):
+    
+    model_name = cfg.MODEL.BACKBONE.MODEL_NAME
+    model_tag = cfg.MODEL.BACKBONE.MODEL_TAG
+    
+    if cfg.MODEL.BACKBONE.INIT_METHOD == 'inherit':
 
         kwargs = cfg.MODEL.BACKBONE.CFG_TIMM
         if hasattr(kwargs, 'mlp_ratio') and isinstance(kwargs['mlp_ratio'], str):
@@ -176,23 +211,13 @@ def build_ostrack(cfg, training=True):
             
         if hasattr(kwargs, 'norm_layer') and kwargs['norm_layer'] == 'nn.LayerNorm':
             kwargs['norm_layer'] = nn.LayerNorm
-        
-        model_name = cfg.MODEL.BACKBONE.MODEL_NAME
-        model_tag = cfg.MODEL.BACKBONE.MODEL_TAG
-        
+
         if model_name.startswith('vit'):
-            if cfg.MODEL.BACKBONE.CONCAT:
-                track_cls = ViTTIMMConcat
-            else:
-                track_cls = ViTTIMM
-            if cfg.MODEL.BACKBONE.MID_FUSION > 0:
-                track_cls = ViTMid
-                kwargs['mid_fusion'] = cfg.MODEL.BACKBONE.MID_FUSION
+            track_cls = ViTTIMM
+
         elif model_name.startswith('eva'):
-            if cfg.MODEL.BACKBONE.CONCAT:
-                track_cls = EvaConcat
-            else:
-                track_cls = EvaTrack
+            track_cls = EvaTrack
+            
         elif model_name.startswith('beit'):
             track_cls = Beit
         else:
@@ -205,27 +230,67 @@ def build_ostrack(cfg, training=True):
             pretrained_filter_fn=checkpoint_filter_fn,
             **kwargs,
         ).cuda()
+        
+    elif cfg.MODEL.BACKBONE.INIT_METHOD == 'direct':
+        
+        kwargs = cfg.MODEL.BACKBONE.CFG_TIMM
+        
+        backbone = timm.create_model(f"{model_name}.{model_tag}",
+                                     pretrained=False,
+                                     **kwargs,
+                                     )
+        
+    else:
+        
+        raise NotImplementedError('Init method can only be inherit or direct.')
+        
+    hidden_dim = backbone.embed_dim
+    
+    return backbone, hidden_dim
 
-        hidden_dim = backbone.embed_dim
+def load_pretrained_timm(cfg, backbone):
+    
+    model_name = cfg.MODEL.BACKBONE.MODEL_NAME
+    model_tag = cfg.MODEL.BACKBONE.MODEL_TAG
+    
+    ckpt = torch.load(cfg.MODEL.BACKBONE.PRETRAINED_FILE,
+                      map_location="cpu")
+    out_dict = checkpoint_filter_fn(ckpt, backbone)
+    missing_keys, unexpected_keys = backbone.load_state_dict(
+        out_dict, strict=False)
+    if is_main_process():
+        print('Model Name: ', f'{model_name}.{model_tag}')
+        print("Load pretrained image encoder checkpoint from:",
+              cfg.MODEL.BACKBONE.PRETRAINED_FILE)
+        print("missing keys:", missing_keys)
+        print("unexpected keys:", unexpected_keys)
+        print("Loading pretrained TIMM ViT done.")
 
-        ckpt = torch.load(cfg.MODEL.BACKBONE.PRETRAINED_FILE,
-                          map_location="cpu")
-        out_dict = checkpoint_filter_fn(ckpt, backbone)
-        missing_keys, unexpected_keys = backbone.load_state_dict(
-            out_dict, strict=False)
-        if is_main_process():
-            print('Model Name: ', f'{model_name}.{model_tag}')
-            print("Load pretrained image encoder checkpoint from:",
-                  cfg.MODEL.BACKBONE.PRETRAINED_FILE)
-            print("missing keys:", missing_keys)
-            print("unexpected keys:", unexpected_keys)
-            print("Loading pretrained TIMM ViT done.")
+def build_ostrack(cfg, training=True):
+    current_dir = os.path.dirname(os.path.abspath(
+        __file__))  # This is your Project Root
+    pretrained_path = os.path.join(current_dir, '../../../pretrained_models')
+    if cfg.MODEL.PRETRAIN_FILE and ('OSTrack' not in cfg.MODEL.PRETRAIN_FILE) and training:
+        pretrained = os.path.join(pretrained_path, cfg.MODEL.PRETRAIN_FILE)
+    else:
+        pretrained = ''
 
-        if hasattr(backbone, 'customize_vit'):
-            backbone.customize_vit()
-        else:
-            print("No customize_vit function found in the backbone. Skip.")
+    # Initialize backbone
+    if cfg.MODEL.BACKBONE.TIMM is False:
+        backbone, hidden_dim = init_backbone_ostrack(cfg, pretrained=pretrained)
 
+    if cfg.MODEL.BACKBONE.TIMM:
+        
+        backbone, hidden_dim = init_backbone_timm(cfg, pretrained=pretrained)
+        
+        if cfg.MODEL.BACKBONE.PRETRAINED:
+            load_pretrained_timm(cfg, backbone)
+            
+        backbone.head.requires_grad_(False)
+        if cfg.MODEL.BACKBONE.FREEZE_CLS_TOKEN:
+            backbone.cls_token.requires_grad_(False)
+        
+    # Initialize text encoder if necessary
     if cfg.MODEL.TEXT.USE_TEXT:
 
         text_encoder = TextTransformer(context_length=cfg.MODEL.TEXT.CONTEXT_LENGTH,
@@ -255,6 +320,7 @@ def build_ostrack(cfg, training=True):
     box_head = build_box_head(cfg, hidden_dim)
 
     model = OSTrack(
+        cfg, 
         backbone,
         box_head,
         text_encoder=text_encoder,

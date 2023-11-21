@@ -52,12 +52,14 @@ MODEL:
     TIMM: True
     MODEL_NAME: vit_base_patch16_224
     MODEL_TAG: mae
-    NORM_PRE: False
+    CONCAT: False
+    INIT_METHOD: 'inherit'
 
     CFG_TIMM:
       {
         search_img_size: 256,
         template_img_size: 128,
+        dynamic_img_size: True,
         img_size: 224,
         num_classes: 0,
         patch_size: 16,

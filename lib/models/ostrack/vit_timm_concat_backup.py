@@ -4,96 +4,50 @@ from timm.models._builder import build_model_with_cfg
 from timm.models.vision_transformer import VisionTransformer, default_cfgs, checkpoint_filter_fn
 from timm.layers import resample_abs_pos_embed
 
-class ViTTIMM(VisionTransformer):
+import torch.nn.functional as F
+
+class ViTTIMMConcat(VisionTransformer):
     
     def __init__(self,
                  search_img_size,
                  template_img_size,
+                 use_class_token=False,
                  **kwargs):
 
         super().__init__(**kwargs)
+        self.use_class_token = use_class_token
         stride = kwargs['patch_size']
         
         self.search_grid_size = search_img_size // stride
         self.template_grid_size = template_img_size // stride
               
-        # self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        # self.pos_embed = self.pos_embed.to(self.device)
-        
-    def customize_vit(self):
-        # resize pos embedding when different size from pretrained weights
-        # self.search_pos_embed = resample_abs_pos_embed(
-        #     self.pos_embed,
-        #     new_size=(self.search_grid_size, self.search_grid_size),
-        #     num_prefix_tokens=self.num_prefix_tokens,
-        # ).cuda()
-        
-        # self.template_pos_embed = resample_abs_pos_embed(
-        #     self.pos_embed,
-        #     new_size=(self.template_grid_size, self.template_grid_size),
-        #     num_prefix_tokens=self.num_prefix_tokens,
-        # ).cuda()
-        
-        self.cls_token.requires_grad = False
-        self.head.requires_grad = False
-        
-        # Disable size check in patch embedding module
-        self.patch_embed.img_size = None
-        
-    def forward_features(self, z, x, text_embed=None):
-        
-        # x = self.patch_embed(x)
-        # if self.cls_token is not None:
-        #     x = torch.cat((self.cls_token.expand(x.shape[0], -1, -1), x), dim=1)
-        # x = x + self.search_pos_embed
-        
-        # z = self.patch_embed(z)
-        # if self.cls_token is not None:
-        #     z = z + self.template_pos_embed[:, 1:]
-        # else:
-        #     z = z + self.template_pos_embed
-        x = self.patch_embed(x)
-        x = self._pos_embed(x)
-        x = self.patch_drop(x)
-        x = self.norm_pre(x)
-        
-        z = self.patch_embed(z)
-        z = self._pos_embed(z)
-        z = self.patch_drop(z)
-        z = self.norm_pre(z)
-        z = z[:, 1:]
-
-        num_prefix_token = 1
-            
-        if text_embed is not None:
-            x = torch.cat([text_embed.unsqueeze(1), z, x], dim=1)
-            num_prefix_token += 1 + z.size(1)
-        else:
-            x = torch.cat([z, x], dim=1)
-            num_prefix_token += z.size(1)
-            
-        x = self.norm_pre(x)
-        x = self.blocks(x)
-        x = self.norm(x)
-        
-        return x, num_prefix_token
-
-    def forward_head(self, x, pre_logits: bool = False):
-        # if self.global_pool:
-        #     x = x[:, self.num_prefix_tokens:].mean(dim=1) if self.global_pool == 'avg' else x[:, 0]
-        x = self.fc_norm(x)
-        x = self.head_drop(x)
-        return x if pre_logits else self.head(x)
-
     def forward(self, z, x, text_embed=None, **kwargs):
-        x, num_prefix_tokens = self.forward_features(x=x, z=z, text_embed=text_embed)
-        # x = self.forward_head(x)
-        # x = x[:, num_prefix_tokens:]
-        # B, L, C = x.shape
-        # x = x.permute(0, 2, 1).contiguous().reshape(B, C, self.search_grid_size, self.search_grid_size)
         
-        z_feat = x[:, :num_prefix_tokens]
-        aux_dict = {'template_feat': z_feat}
+        # Empty
+        empty_z = torch.zeros_like(z).to(z.device)
+        input_img = torch.cat([z, empty_z], axis=2)
+        input_img = torch.cat([input_img, x], axis=3)
+        
+        # Same
+        # z = F.interpolate(z, scale_factor=2, mode='bilinear', align_corners=False)
+        # input_img = torch.cat([input_img, z], axis=3)
+        
+        # Trident
+        # input_img = torch.cat(z, axis=2)
+        # input_img = torch.cat([input_img, x], axis=3)
+        
+        x = self.forward_features(input_img)
+        
+        x = x[:, self.num_prefix_tokens:]
+        
+        B = x.shape[0]
+        feature_size = [self.patch_embed.img_size[0] // self.patch_embed.patch_size[0],
+                        self.patch_embed.img_size[1] // self.patch_embed.patch_size[1]]
+        x = x.reshape(B, feature_size[0], feature_size[1], -1)
+        x = x[:, :, self.template_grid_size:, :]
+        x = x.flatten(1, 2)
+
+        aux_dict = {}
         return x, aux_dict
         
 if __name__ == '__main__':

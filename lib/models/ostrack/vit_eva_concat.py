@@ -26,7 +26,7 @@ class EvaConcat(Eva):
         input_img = torch.cat([z, empty_z], axis=2)
         input_img = torch.cat([input_img, x], axis=3)
         
-        x = self.patch_embed(x)
+        x = self.patch_embed(input_img)
         x, rot_pos_embed = self._pos_embed(x)
 
         for blk in self.blocks:

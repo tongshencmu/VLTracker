@@ -20,18 +20,17 @@ cfg.MODEL.BACKBONE.TYPE = "vit_base_patch16_224"
 
 # TIMM parameters. Only effective when TIMM is true
 cfg.MODEL.BACKBONE.TIMM = False
-cfg.MODEL.BACKBONE.NORM_PRE = True
 cfg.MODEL.BACKBONE.MODEL_NAME = "vit_base_patch16_clip_224"
 cfg.MODEL.BACKBONE.MODEL_TAG = "laion2b"
 cfg.MODEL.BACKBONE.CONCAT = False
+cfg.MODEL.BACKBONE.CONCAT_MODE = "empty"
+cfg.MODEL.BACKBONE.FREEZE_CLS_TOKEN = False
+cfg.MODEL.BACKBONE.INIT_METHOD = 'direct'
 cfg.MODEL.BACKBONE.MID_FUSION = 0
 cfg.MODEL.BACKBONE.CFG_TIMM = dict(
     pre_norm=False,
-    template_img_size=128,
-    search_img_size=256,
     img_size=224,
     init_values=None,
-    use_class_token=True,
     patch_size=16,
     embed_dim=768,
     depth=12,

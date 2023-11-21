@@ -8,7 +8,7 @@ DATA:
     CENTER_JITTER: 3
     FACTOR: 4.0
     SCALE_JITTER: 0.25
-    SIZE: 256
+    SIZE: 280
     NUMBER: 1
   STD:
   - 0.2686
@@ -18,7 +18,7 @@ DATA:
     CENTER_JITTER: 0
     FACTOR: 2.0
     SCALE_JITTER: 0
-    SIZE: 128
+    SIZE: 140
 #  TRAIN:
 #    DATASETS_NAME:
 #      - GOT10K_train_full
@@ -53,18 +53,12 @@ MODEL:
     MODEL_NAME: vit_base_patch14_dinov2
     MODEL_TAG: lvd142m
     CONCAT: True
+    CONCAT_MODE: 'empty'
+    INIT_METHOD: 'direct'
 
     CFG_TIMM: 
       {
-        search_img_size: 256,
-        template_img_size: 128,
-        num_classes: 0, 
-        patch_size: 14, 
-        embed_dim: 768, 
-        depth: 12, 
-        num_heads: 12, 
-        init_values: 0.00001, 
-        img_size: [256, 384]
+        img_size: [280, 420]
       }
 
     TYPE: vit_base_patch16_224_ce
@@ -113,6 +107,6 @@ TRAIN:
 TEST:
   EPOCH: 300
   SEARCH_FACTOR: 4.0
-  SEARCH_SIZE: 256
+  SEARCH_SIZE: 280
   TEMPLATE_FACTOR: 2.0
-  TEMPLATE_SIZE: 128
+  TEMPLATE_SIZE: 140

@@ -7,7 +7,7 @@ from timm.data.transforms_factory import create_transform
 from timm.models.vision_transformer import default_cfgs
 
 model_name = 'beitv2_base_patch16_224.in1k_ft_in22k_in1k'
-model = timm.create_model(model_name, pretrained=True, img_size=256)
+model = timm.create_model(model_name, pretrained=True, img_size=[256, 384])
 model.eval()
 
 save_name = model_name.replace('.', '_') + '.pth'

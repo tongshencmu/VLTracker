@@ -53,25 +53,12 @@ MODEL:
     MODEL_NAME: eva02_base_patch16_clip_224
     MODEL_TAG: merged2b
     CONCAT: True
+    CONCAT_MODE: 'empty'
+    INIT_METHOD: 'direct'
 
     CFG_TIMM: 
       {
-        search_img_size: 256,
-        template_img_size: 128,
-        num_classes: 512,
         img_size: [256, 384],
-        patch_size: 16,
-        embed_dim: 768,
-        depth: 12,
-        num_heads: 12,
-        qkv_fused: False,
-        mlp_ratio: 4 * 2 / 3,
-        swiglu_mlp: True,
-        scale_mlp: True,
-        scale_attn_inner: True,
-        use_rot_pos_emb: True,
-        ref_feat_shape: [16, 16],
-        global_pool: 'token',
       }
 
     TYPE: vit_base_patch16_224_ce
