@@ -71,7 +71,7 @@ class OSTrack(nn.Module):
             
         elif self.cfg.MODEL.BACKBONE.CONCAT_MODE == 'same':
             
-            search = F.interpolate(search, scale_factor=2, mode='bilinear', align_corners=False)
+            template = F.interpolate(template, scale_factor=2, mode='bilinear', align_corners=False)
             input_img = torch.cat([template, search], axis=3)
             
         elif self.cfg.MODEL.BACKBONE.CONCAT_MODE == 'trident':
@@ -198,7 +198,7 @@ def init_backbone_ostrack(cfg, pretrained):
     
     return backbone, hidden_dim
 
-def init_backbone_timm(cfg, pretrained):
+def init_backbone_timm(cfg):
     
     model_name = cfg.MODEL.BACKBONE.MODEL_NAME
     model_tag = cfg.MODEL.BACKBONE.MODEL_TAG
@@ -281,7 +281,7 @@ def build_ostrack(cfg, training=True):
 
     if cfg.MODEL.BACKBONE.TIMM:
         
-        backbone, hidden_dim = init_backbone_timm(cfg, pretrained=pretrained)
+        backbone, hidden_dim = init_backbone_timm(cfg)
         
         if cfg.MODEL.BACKBONE.PRETRAINED:
             load_pretrained_timm(cfg, backbone)

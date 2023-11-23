@@ -1,7 +1,19 @@
 import os
 import argparse
 import random
+import numpy as np
+import torch
 
+DEFAULT_RANDOM_SEED = 7777
+
+def seedBasic(seed=DEFAULT_RANDOM_SEED):
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    
+def seedTorch(seed=DEFAULT_RANDOM_SEED):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
 
 def parse_args():
     """
@@ -36,6 +48,10 @@ def parse_args():
 
 
 def main():
+    
+    seedBasic()
+    seedTorch()
+    
     args = parse_args()
     if args.mode == "single":
         train_cmd = "python lib/train/run_training.py --script %s --config %s --save_dir %s --use_lmdb %d " \
