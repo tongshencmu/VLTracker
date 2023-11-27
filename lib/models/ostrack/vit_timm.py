@@ -55,13 +55,11 @@ class ViTTIMM(VisionTransformer):
         x = self.patch_embed(x)
         x = self._pos_embed(x)
         x = self.patch_drop(x)
-        x = self.norm_pre(x)
+        x = x[:, 1:]
         
         z = self.patch_embed(z)
         z = self._pos_embed(z)
         z = self.patch_drop(z)
-        z = self.norm_pre(z)
-        z = z[:, 1:]
 
         num_prefix_token = 1
             

@@ -107,7 +107,10 @@ class OSTrack(nn.Module):
             x = x[:, 1:]
             
             patch_size = self.backbone.patch_embed.patch_size[0]
-            tem_feat_size = template.shape[-2] // patch_size
+            if isinstance(template, list):
+                tem_feat_size = template[0].shape[-2] // patch_size
+            else:
+                tem_feat_size = template.shape[-2] // patch_size
             search_feat_size = search.shape[-2] // patch_size
             B = x.shape[0]
             x = x.reshape(B, search_feat_size, tem_feat_size + search_feat_size, -1)

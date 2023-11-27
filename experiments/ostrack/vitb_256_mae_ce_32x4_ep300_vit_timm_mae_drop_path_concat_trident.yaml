@@ -1,5 +1,7 @@
 DATA:
-  MAX_SAMPLE_INTERVAL: 200
+  SAMPLER_MODE: trident
+  MAX_SAMPLE_INTERVAL: 
+    - 200
   MEAN:
     - 0.4815
     - 0.4578
@@ -19,6 +21,7 @@ DATA:
     FACTOR: 2.0
     SCALE_JITTER: 0
     SIZE: 128
+    NUMBER: 2
   #  TRAIN:
   #    DATASETS_NAME:
   #      - GOT10K_train_full
@@ -52,21 +55,14 @@ MODEL:
     TIMM: True
     MODEL_NAME: vit_base_patch16_224
     MODEL_TAG: mae
-    CONCAT: False
-    INIT_METHOD: 'inherit'
+    CONCAT: True
+    CONCAT_MODE: trident
+    INIT_METHOD: direct
 
     CFG_TIMM:
       {
-        search_img_size: 256,
-        template_img_size: 128,
-        dynamic_img_size: True,
-        img_size: 224,
-        num_classes: 0,
-        patch_size: 16,
-        embed_dim: 768,
-        depth: 12,
-        num_heads: 12,
-        pre_norm: False,
+        img_size: [256, 384],
+        drop_path_rate: 0.1,
       }
 
     TYPE: vit_base_patch16_224_ce
@@ -114,8 +110,24 @@ TRAIN:
   WEIGHT_DECAY: 0.0001
   AMP: False
 TEST:
+  ONLINE_UPDATE: True
   EPOCH: 300
   SEARCH_FACTOR: 4.0
   SEARCH_SIZE: 256
   TEMPLATE_FACTOR: 2.0
   TEMPLATE_SIZE: 128
+
+  UPDATE_INTERVALS: 
+    LASOT: [200]
+    GOT10K_TEST: [200]
+    TRACKINGNET: [25]
+  
+  ONLINE_SIZES:
+    LASOT: [1]
+    GOT10K_TEST: [1]
+    TRACKINGNET: [1]
+  
+  MAX_SCORE_DECAY:
+    LASOT: [0.95]
+    GOT10K_TEST: [0.95]
+    TRACKINGNET: [0.9]

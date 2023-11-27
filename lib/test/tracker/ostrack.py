@@ -31,10 +31,36 @@ class OSTrack(BaseTracker):
         # motion constrain
         self.output_window = hann2d(torch.tensor([self.feat_sz, self.feat_sz]).long(), centered=True).cuda()
         self.tokenizer = open_clip.get_tokenizer('ViT-B-16')
+        
+        self.online_update = self.cfg.TEST.ONLINE_UPDATE
+        
+        if self.online_update:
+            
+            # Set dataset specific parameters
+            DATASET_NAME = dataset_name.upper()
+            if hasattr(self.cfg.TEST.UPDATE_INTERVALS, DATASET_NAME):
+                self.update_intervals = self.cfg.TEST.UPDATE_INTERVALS[DATASET_NAME]
+                self.online_sizes = self.cfg.TEST.ONLINE_SIZES[DATASET_NAME]
+                self.max_score_decay = self.cfg.TEST.MAX_SCORE_DECAY[DATASET_NAME]
+            else:
+                self.update_intervals = self.cfg.TEST.MAX_SAMPLE_INTERVAL
+                self.online_sizes = [1]
+                self.max_score_decay = [1.0]
+            
+            self.update_interval = self.update_intervals[0]
+            self.online_size = self.online_sizes[0]
+            self.max_score_decay = self.max_score_decay[0]
+            
+            print('Online update: ', self.online_update)
+            print('Update interval: ', self.update_interval)
+            print('Online size: ', self.online_size)
+            print('Max score decay: ', self.max_score_decay)
+            print('Template scale: ', self.params.template_factor)
+            print('Search scale: ', self.params.search_factor)
 
         # for debug
         self.debug = params.debug
-        self.use_visdom = params.debug
+        self.use_visdom = False
         self.frame_id = 0
         if self.debug:
             if not self.use_visdom:
@@ -54,8 +80,16 @@ class OSTrack(BaseTracker):
                                                     output_sz=self.params.template_size)
         self.z_patch_arr = z_patch_arr
         template = self.preprocessor.process(z_patch_arr, z_amask_arr)
+        self.template = template
+        
         with torch.no_grad():
             self.z_dict1 = template
+            
+        if self.online_update:
+            self.max_pred_score = -1.0
+            self.online_forgot_id = 0
+            self.online_template = template
+            self.online_max_template = template
 
         self.text_embed = None
         if 'nlp' in info and info['nlp'] is not None and self.cfg.MODEL.TEXT.USE_TEXT:
@@ -83,13 +117,18 @@ class OSTrack(BaseTracker):
         x_patch_arr, resize_factor, x_amask_arr = sample_target(image, self.state, self.params.search_factor,
                                                                 output_sz=self.params.search_size)  # (x1, y1, w, h)
         search = self.preprocessor.process(x_patch_arr, x_amask_arr)
+        
+        if self.online_update:
+            template_input = [self.z_dict1.tensors, self.online_template.tensors]
+        else:
+            template_input = self.z_dict1.tensors
 
         with torch.no_grad():
             x_dict = search
             # merge the template and the search
             # run the transformer
             out_dict = self.network.forward(
-                template=self.z_dict1.tensors,
+                template=template_input,
                 search=x_dict.tensors,
                 ce_template_mask=self.box_mask_z,
                 text_embed=self.text_embed)
@@ -97,6 +136,7 @@ class OSTrack(BaseTracker):
         # add hann windows
         pred_score_map = out_dict['score_map']
         response = self.output_window * pred_score_map
+        pred_score = torch.amax(response).sigmoid().item()
         pred_boxes = self.network.box_head.cal_bbox(response, out_dict['size_map'], out_dict['offset_map'])
         pred_boxes = pred_boxes.view(-1, 4)
         # Baseline: Take the mean of all pred boxes as the final result
@@ -104,6 +144,25 @@ class OSTrack(BaseTracker):
             dim=0) * self.params.search_size / resize_factor).tolist()  # (cx, cy, w, h) [0,1]
         # get the final box result
         self.state = clip_box(self.map_box_back(pred_box, resize_factor), H, W, margin=10)
+        
+        # update template
+        if pred_score > 0.5 and pred_score > self.max_pred_score:
+            z_patch_arr, _, z_amask_arr = sample_target(image, self.state,
+                                                        self.params.template_factor,
+                                                        output_sz=self.params.template_size)  # (x1, y1, w, h)
+            self.online_max_template = self.preprocessor.process(z_patch_arr, z_amask_arr)
+            self.max_pred_score = pred_score
+        if self.frame_id % self.update_interval == 0:
+            if self.online_size == 1:
+                self.online_template = self.online_max_template
+            elif self.online_template.shape[0] < self.online_size:
+                self.online_template = torch.cat([self.online_template, self.online_max_template])
+            else:
+                self.online_template[self.online_forget_id:self.online_forget_id + 1] = self.online_max_template
+                self.online_forget_id = (self.online_forget_id + 1) % self.online_size
+
+            self.max_pred_score = -1
+            self.online_max_template = self.template
 
         # for debug
         if self.debug:
